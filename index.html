@@ -12,22 +12,22 @@
   <title>Lezione GPS</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
   <style>
-    :root { color-scheme: light; --bg:#f3f5f8; --ink:#172033; --muted:#667085; --blue:#2563eb; }
+    :root { color-scheme: light; --bg:#f3f5f8; --ink:#172033; --muted:#667085; }
     * { box-sizing:border-box; }
     body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; color:var(--ink); background:var(--bg); }
-    header { padding: max(14px, env(safe-area-inset-top)) 16px 12px; background:#101827; color:white; display:flex; align-items:center; justify-content:space-between; gap:12px; }
+    header { padding:max(14px,env(safe-area-inset-top)) 16px 12px; background:#101827; color:white; display:flex; align-items:center; justify-content:space-between; gap:12px; }
     header h1 { font-size:21px; margin:0; } header p { margin:4px 0 0; font-size:12px; color:#cbd5e1; }
     .badge { font-size:11px; padding:7px 9px; border-radius:999px; background:#263449; white-space:nowrap; }
-    #map { height:43vh; min-height:270px; width:100%; background:#dbeafe; }
+    #map { height:38vh; min-height:240px; width:100%; background:#dbeafe; }
     main { padding:12px 12px calc(16px + env(safe-area-inset-bottom)); max-width:760px; margin:auto; }
     .status { display:flex; justify-content:space-between; align-items:center; gap:8px; padding:10px 12px; background:white; border-radius:12px; margin-bottom:10px; box-shadow:0 1px 3px #0000000a; font-size:12px; }
     #statusText { color:var(--muted); }
-    .buttons { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
+    .buttons { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
     button { border:0; border-radius:13px; padding:12px 8px; font:inherit; font-weight:700; cursor:pointer; touch-action:manipulation; }
     button:disabled { opacity:.45; cursor:not-allowed; }
-    .error { min-height:94px; color:white; display:flex; flex-direction:column; justify-content:center; align-items:center; gap:7px; text-align:center; font-size:12px; line-height:1.2; }
+    .error { min-height:82px; color:white; display:flex; flex-direction:column; justify-content:center; align-items:center; gap:7px; text-align:center; font-size:12px; line-height:1.2; }
     .error .symbol { font-size:24px; }
-    .red { background:#dc2626; } .orange { background:#ea580c; } .blue { background:#2563eb; }
+    .red { background:#dc2626; } .orange { background:#ea580c; } .blue { background:#2563eb; } .purple { background:#7c3aed; } .amber { background:#b45309; } .teal { background:#0f766e; } .pink { background:#be185d; }
     .controls { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
     .primary { background:#172033; color:white; } .secondary { background:white; color:#172033; border:1px solid #d0d5dd; }
     .toolbar { display:flex; gap:8px; margin-top:8px; } .toolbar button { flex:1; font-size:13px; background:white; border:1px solid #d0d5dd; }
@@ -44,6 +44,7 @@
     .row:last-child { border-bottom:0; }
     .eventitem { padding:10px 0; border-bottom:1px solid #eaecf0; font-size:13px; }
     .close { background:#f2f4f7; padding:8px 12px; }
+    @media (min-width:520px) { .buttons { grid-template-columns:repeat(3,minmax(0,1fr)); } }
     @media (max-width:360px) { .error { font-size:11px; } .error .symbol { font-size:21px; } button { padding:10px 5px; } }
   </style>
 </head>
@@ -58,13 +59,15 @@
     <span id="statusText">Consenti la posizione GPS e avvia una lezione.</span>
     <button class="secondary" style="padding:8px 10px;white-space:nowrap" id="centerBtn" aria-label="Centra sulla posizione">◎ Mappa</button>
   </div>
-
   <div class="buttons">
     <button class="error red" id="rightBtn" disabled><span class="symbol">↗</span><span>Mancata<br>precedenza</span></button>
-    <button class="error orange" id="pedBtn" disabled><span class="symbol">🚶</span><span>Precedenza<br>ai pedoni</span></button>
-    <button class="error blue" id="mirrorBtn" disabled><span class="symbol">🚘</span><span>Controllo<br>specchi</span></button>
+    <button class="error orange" id="pedBtn" disabled><span class="symbol">🚶</span><span>Mancata precedenza<br>ai pedoni</span></button>
+    <button class="error blue" id="mirrorBtn" disabled><span class="symbol">🚘</span><span>Mancato controllo<br>specchi</span></button>
+    <button class="error purple" id="speedBtn" disabled><span class="symbol">🚀</span><span>Superamento limite<br>di velocità</span></button>
+    <button class="error amber" id="oneWayBtn" disabled><span class="symbol">↰</span><span>Mancato spostamento a sinistra<br>in svolta su senso unico</span></button>
+    <button class="error teal" id="yellowBtn" disabled><span class="symbol">🚦</span><span>Mancato arresto al giallo<br>quando era possibile fermarsi</span></button>
+    <button class="error pink" id="indicatorBtn" disabled><span class="symbol">↪</span><span>Indicatore di direzione<br>non azionato</span></button>
   </div>
-
   <div class="controls">
     <button class="primary" id="startBtn">▶ Nuova lezione</button>
     <button class="secondary" id="stopBtn" disabled>■ Termina lezione</button>
@@ -78,9 +81,8 @@
     <div class="stat"><strong id="duration">00:00</strong><span>Durata lezione</span></div>
     <div class="stat"><strong id="routeCount">0</strong><span>Punti percorso</span></div>
   </div>
-  <p class="note">I dati vengono salvati localmente su questo dispositivo. La posizione funziona quando il sito è aperto e autorizzato; il tracciamento in background non è garantito. La mappa richiede una connessione Internet. Interagisci con l'app soltanto quando è sicuro farlo.</p>
+  <p class="note">I dati vengono salvati localmente su questo dispositivo. Gli errori vengono registrati toccando il relativo pulsante, con ora e posizione GPS disponibili in quel momento. La velocità non viene rilevata automaticamente. La posizione funziona quando il sito è aperto e autorizzato; il tracciamento in background non è garantito. La mappa richiede Internet. Interagisci con l'app soltanto quando è sicuro farlo.</p>
 </main>
-
 <dialog id="historyDialog">
   <div class="modalhead"><h2>Storico lezioni</h2><button class="close" data-close="historyDialog">Chiudi</button></div>
   <div class="modalbody" id="historyList"></div>
@@ -97,16 +99,16 @@
   const types = {
     right: { name:'Mancata precedenza', color:'#dc2626', emoji:'↗' },
     pedestrian: { name:'Mancata precedenza ai pedoni', color:'#ea580c', emoji:'🚶' },
-    mirrors: { name:'Mancato controllo degli specchi', color:'#2563eb', emoji:'🚘' }
+    mirrors: { name:'Mancato controllo degli specchi', color:'#2563eb', emoji:'🚘' },
+    speed: { name:'Superamento limite di velocità', color:'#7c3aed', emoji:'🚀' },
+    oneWay: { name:'Mancato spostamento a sinistra in svolta su senso unico', color:'#b45309', emoji:'↰' },
+    yellow: { name:'Mancato arresto al semaforo giallo quando era possibile fermarsi in sicurezza', color:'#0f766e', emoji:'🚦' },
+    indicator: { name:'Indicatore di direzione non azionato', color:'#be185d', emoji:'↪' }
   };
   let sessions = loadSessions(), active = null, watchId = null, currentPosition = null, lastRoutePoint = null, currentMarkers = [], routeLine = null, vehicleMarker = null, timer = null;
-
   const map = L.map('map', { zoomControl:true }).setView([45.8900, 11.0400], 14);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom:19, attribution:'&copy; OpenStreetMap contributors'
-  }).addTo(map);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom:19, attribution:'&copy; OpenStreetMap contributors' }).addTo(map);
   setTimeout(() => map.invalidateSize(), 250);
-
   function loadSessions() {
     try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; }
   }
@@ -129,7 +131,7 @@
   function updateControls() {
     $('startBtn').disabled = !!active;
     $('stopBtn').disabled = !active;
-    ['rightBtn','pedBtn','mirrorBtn'].forEach(id => $(id).disabled = !active);
+    ['rightBtn','pedBtn','mirrorBtn','speedBtn','oneWayBtn','yellowBtn','indicatorBtn'].forEach(id => $(id).disabled = !active);
     $('sessionBadge').textContent = active ? '● Lezione in corso' : 'Lezione non avviata';
     $('sessionBadge').style.background = active ? '#166534' : '#263449';
   }
@@ -143,21 +145,12 @@
     const points = (session?.route || []).map(p => [p.lat,p.lng]);
     if (points.length > 1) routeLine = L.polyline(points, {color:'#2563eb',weight:5,opacity:.85}).addTo(map);
     (session?.events || []).forEach(ev => {
-      const t = types[ev.type];
-      const icon = L.divIcon({
-        className:'',
-        html:`<div style="width:31px;height:31px;border-radius:50%;background:${t.color};color:white;border:2px solid white;box-shadow:0 1px 5px #0005;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:bold">${t.emoji}</div>`,
-        iconSize:[31,31], iconAnchor:[15,15]
-      });
-      const marker = L.marker([ev.lat,ev.lng],{icon}).addTo(map)
-        .bindPopup(`<b>${escapeHTML(t.name)}</b><br>${fmtDate(ev.date)}<br>${ev.lat.toFixed(5)}, ${ev.lng.toFixed(5)}`);
+      const t = types[ev.type] || {name:ev.type || 'Errore', color:'#475569', emoji:'!'};
+      const icon = L.divIcon({ className:'', html:`<div style="width:31px;height:31px;border-radius:50%;background:${t.color};color:white;border:2px solid white;box-shadow:0 1px 5px #0005;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:bold">${t.emoji}</div>`, iconSize:[31,31], iconAnchor:[15,15] });
+      const marker = L.marker([ev.lat,ev.lng],{icon}).addTo(map).bindPopup(`<b>${escapeHTML(t.name)}</b><br>${fmtDate(ev.date)}<br>${ev.lat.toFixed(5)}, ${ev.lng.toFixed(5)}`);
       currentMarkers.push(marker);
     });
-    if (showVehicle && currentPosition) {
-      vehicleMarker = L.circleMarker([currentPosition.lat,currentPosition.lng], {
-        radius:9,color:'#fff',weight:3,fillColor:'#2563eb',fillOpacity:1
-      }).addTo(map).bindPopup('Posizione attuale del veicolo');
-    }
+    if (showVehicle && currentPosition) vehicleMarker = L.circleMarker([currentPosition.lat,currentPosition.lng], {radius:9,color:'#fff',weight:3,fillColor:'#2563eb',fillOpacity:1}).addTo(map).bindPopup('Posizione attuale del veicolo');
     const bounds = [];
     if (points.length) bounds.push(...points);
     (session?.events || []).forEach(e => bounds.push([e.lat,e.lng]));
@@ -166,15 +159,12 @@
     updateStats();
   }
   function escapeHTML(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-
   function startGPS() {
     if (!('geolocation' in navigator)) { setStatus('Questo browser non supporta la geolocalizzazione.'); return; }
     if (!window.isSecureContext) { setStatus('Per il GPS il sito deve essere aperto tramite HTTPS.'); return; }
     setStatus('Richiesta posizione GPS…');
     navigator.geolocation.getCurrentPosition(onPosition, onGeoError, {enableHighAccuracy:true,timeout:15000,maximumAge:2000});
-    if (watchId === null) {
-      watchId = navigator.geolocation.watchPosition(onPosition, onGeoError, {enableHighAccuracy:true,maximumAge:3000,timeout:20000});
-    }
+    if (watchId === null) watchId = navigator.geolocation.watchPosition(onPosition, onGeoError, {enableHighAccuracy:true,maximumAge:3000,timeout:20000});
   }
   function onPosition(pos) {
     currentPosition = {lat:pos.coords.latitude,lng:pos.coords.longitude,accuracy:pos.coords.accuracy};
@@ -182,19 +172,15 @@
     if (active) {
       const p = {lat:currentPosition.lat,lng:currentPosition.lng,time:pos.timestamp};
       if (!lastRoutePoint || distanceMeters(lastRoutePoint,p) >= 4) {
-        active.route.push(p); lastRoutePoint = p;
-        saveSessions();
-        drawSession(active,true);
+        active.route.push(p); lastRoutePoint = p; saveSessions(); drawSession(active,true);
       } else {
         if (vehicleMarker) vehicleMarker.setLatLng([p.lat,p.lng]);
         else vehicleMarker = L.circleMarker([p.lat,p.lng],{radius:9,color:'#fff',weight:3,fillColor:'#2563eb',fillOpacity:1}).addTo(map);
       }
-    } else {
-      if (!viewingSessionId) {
-        if (vehicleMarker) vehicleMarker.setLatLng([currentPosition.lat,currentPosition.lng]);
-        else vehicleMarker = L.circleMarker([currentPosition.lat,currentPosition.lng],{radius:9,color:'#fff',weight:3,fillColor:'#2563eb',fillOpacity:1}).addTo(map);
-        map.setView([currentPosition.lat,currentPosition.lng],16);
-      }
+    } else if (!viewedSessionId) {
+      if (vehicleMarker) vehicleMarker.setLatLng([currentPosition.lat,currentPosition.lng]);
+      else vehicleMarker = L.circleMarker([currentPosition.lat,currentPosition.lng],{radius:9,color:'#fff',weight:3,fillColor:'#2563eb',fillOpacity:1}).addTo(map);
+      map.setView([currentPosition.lat,currentPosition.lng],16);
     }
   }
   function onGeoError(err) {
@@ -216,15 +202,11 @@
   }
   function stopSession() {
     if (!active) return;
-    active.endedAt = new Date().toISOString();
-    active.durationSeconds = Math.round(elapsed());
-    const finished = active;
-    active = null; lastRoutePoint = null;
+    active.endedAt = new Date().toISOString(); active.durationSeconds = Math.round(elapsed());
+    const finished = active; active = null; lastRoutePoint = null;
     if (timer) { clearInterval(timer); timer = null; }
-    saveSessions(); updateControls(); updateStats();
-    drawSession(finished,false);
-    setStatus('Lezione terminata · riepilogo pronto');
-    showSummary(finished);
+    saveSessions(); updateControls(); updateStats(); drawSession(finished,false);
+    setStatus('Lezione terminata · riepilogo pronto'); showSummary(finished);
   }
   function addEvent(type) {
     if (!active) return;
@@ -241,7 +223,7 @@
       <div class="row"><span>Totale errori</span><strong>${session.events.length}</strong></div>
       ${Object.entries(types).map(([key,t])=>`<div class="row"><span>${t.emoji} ${escapeHTML(t.name)}</span><strong>${counts[key]||0}</strong></div>`).join('')}
       <h3>Eventi registrati</h3>
-      ${session.events.length ? session.events.map(e=>`<div class="eventitem"><b>${escapeHTML(types[e.type].name)}</b><br>${escapeHTML(fmtDate(e.date))}<br><small>${e.lat.toFixed(6)}, ${e.lng.toFixed(6)}</small></div>`).join('') : '<p>Nessun errore registrato.</p>'}
+      ${session.events.length ? session.events.map(e=>`<div class="eventitem"><b>${escapeHTML((types[e.type] || {name:e.type}).name)}</b><br>${escapeHTML(fmtDate(e.date))}<br><small>${e.lat.toFixed(6)}, ${e.lng.toFixed(6)}</small></div>`).join('') : '<p>Nessun errore registrato.</p>'}
       <button class="primary" id="summaryExport" style="width:100%;margin-top:12px">Esporta questa lezione in CSV</button>`;
     $('summaryDialog').showModal();
     $('summaryExport').onclick = () => exportCSV(session);
@@ -261,9 +243,7 @@
     list.querySelectorAll('[data-id]').forEach(btn => btn.addEventListener('click',()=>{
       if (active) { setStatus('Termina la lezione in corso prima di aprire lo storico.'); return; }
       const s=sessions.find(x=>x.id===btn.dataset.id); if (!s) return;
-      viewedSessionId=s.id; drawSession(s,false);
-      setStatus('Storico visualizzato · '+fmtDate(s.startedAt));
-      $('historyDialog').close();
+      viewedSessionId=s.id; drawSession(s,false); setStatus('Storico visualizzato · '+fmtDate(s.startedAt)); $('historyDialog').close();
     }));
     $('historyDialog').showModal();
   }
@@ -273,30 +253,23 @@
       if (!session) { setStatus('Avvia una lezione o seleziona una lezione dallo storico.'); return; }
     }
     const esc = v => '"' + String(v).replace(/"/g,'""') + '"';
-    const rows = [['Tipo errore','Data e ora','Latitudine','Longitudine'],
-      ...session.events.map(e=>[types[e.type].name,e.date,e.lat,e.lng])];
+    const rows = [['Tipo errore','Data e ora','Latitudine','Longitudine'], ...session.events.map(e=>[((types[e.type] || {name:e.type}).name),e.date,e.lat,e.lng])];
     const csv = '\uFEFF' + rows.map(r=>r.map(esc).join(';')).join('\r\n');
     const blob = new Blob([csv],{type:'text/csv;charset=utf-8;'});
     const url = URL.createObjectURL(blob);
     const a=document.createElement('a'); a.href=url; a.download='LezioneGPS-'+new Date(session.startedAt).toISOString().slice(0,10)+'.csv';
     document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1000);
   }
-
   $('startBtn').addEventListener('click',startSession);
   $('stopBtn').addEventListener('click',stopSession);
-  $('rightBtn').addEventListener('click',()=>addEvent('right'));
-  $('pedBtn').addEventListener('click',()=>addEvent('pedestrian'));
-  $('mirrorBtn').addEventListener('click',()=>addEvent('mirrors'));
+  [['rightBtn','right'],['pedBtn','pedestrian'],['mirrorBtn','mirrors'],['speedBtn','speed'],['oneWayBtn','oneWay'],['yellowBtn','yellow'],['indicatorBtn','indicator']].forEach(([id,type]) => $(id).addEventListener('click',()=>addEvent(type)));
   $('centerBtn').addEventListener('click',()=>{ startGPS(); if(currentPosition) map.setView([currentPosition.lat,currentPosition.lng],17); });
   $('historyBtn').addEventListener('click',showHistory);
   $('exportBtn').addEventListener('click',()=>exportCSV());
   document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>$(b.dataset.close).close()));
   window.addEventListener('beforeunload',()=>{ if(active) { active.durationSeconds=Math.round(elapsed()); saveSessions(); }});
   updateControls(); updateStats(); startGPS();
-
-  if ('serviceWorker' in navigator && window.isSecureContext) {
-    window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
-  }
+  if ('serviceWorker' in navigator && window.isSecureContext) window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
 })();
 </script>
 </body>
